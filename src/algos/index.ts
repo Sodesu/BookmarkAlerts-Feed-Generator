@@ -1,4 +1,3 @@
-// index.ts
 import { AppContext } from '../config';
 import {
     QueryParams,
@@ -14,7 +13,7 @@ type AlgoHandler = {
 const algos: Record<string, AlgoHandler> = {
     [whatsAlf.shortname]: {
         handler: whatsAlf.handler,
-        requiresAuth: whatsAlf.requiresAuth,  // Reflects the updated auth requirement
+        requiresAuth: whatsAlf.requiresAuth,
     },
 };
 
