@@ -4,10 +4,15 @@ import { AppContext } from './config'
 const makeRouter = (ctx: AppContext) => {
   const router = express.Router()
 
+
   router.get('/.well-known/did.json', (_req, res) => {
+
     if (!ctx.cfg.serviceDid.endsWith(ctx.cfg.hostname)) {
-      return res.sendStatus(404)
+      console.log(`Service DID does not match hostname: ${ctx.cfg.serviceDid} vs ${ctx.cfg.hostname}`);
+      return res.sendStatus(404);
     }
+    
+    res.setHeader('Content-Type', 'application/json');
     res.json({
       '@context': ['https://www.w3.org/ns/did/v1'],
       id: ctx.cfg.serviceDid,
@@ -18,9 +23,9 @@ const makeRouter = (ctx: AppContext) => {
           serviceEndpoint: `https://${ctx.cfg.hostname}`,
         },
       ],
-    })
-  })
+    });
+  });
 
-  return router
+  return router;
 }
-export default makeRouter
+export default makeRouter;
