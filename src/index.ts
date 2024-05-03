@@ -15,17 +15,19 @@ const run = async () => {
     hostname,
     serviceDid,
   })
+  if (!server.cfg.databaseUrl) {
+    throw new Error("Database URL must be provided.");
+  }
   await server.start();
   console.log(`🤖 running feed generator at http://${server.cfg.listenhost}:${server.cfg.port}`);
 }
 
 const maybeStr = (val?: string, defaultValue: string = '') => val || defaultValue;
 
-const maybeInt = (val?: string) => {
-  if (!val) return undefined
-  const int = parseInt(val, 10)
-  if (isNaN(int)) return undefined
-  return int
-}
+const maybeInt = (val?: string, defaultValue: number = 0): number => {
+  if (val === undefined) return defaultValue;
+  const parsed = parseInt(val, 10);
+  return isNaN(parsed) ? defaultValue : parsed;
+};
 
 run()
