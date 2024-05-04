@@ -3,15 +3,15 @@ import { cborToLexRecord, readCar } from '@atproto/repo'
 import { BlobRef } from '@atproto/lexicon'
 import { ids, lexicons } from '../lexicon/lexicons'
 import { Record as PostRecord } from '../lexicon/types/app/bsky/feed/post'
-import { Record as RepostRecord } from '../lexicon/types/app/bsky/feed/repost'
-import { Record as LikeRecord } from '../lexicon/types/app/bsky/feed/like'
-import { Record as FollowRecord } from '../lexicon/types/app/bsky/graph/follow'
 import {
   Commit,
   OutputSchema as RepoEvent,
   isCommit,
 } from '../lexicon/types/com/atproto/sync/subscribeRepos'
 import { Database } from '../db'
+
+
+
 
 export abstract class FirehoseSubscriptionBase {
   public sub: Subscription<RepoEvent>
@@ -36,24 +36,29 @@ export abstract class FirehoseSubscriptionBase {
 
   abstract handleEvent(evt: RepoEvent): Promise<void>
 
-  async run(subscriptionReconnectDelay: number) {
+
+
+  async run(subscriptionReconnectDelay: number, maxDelay: number = 32000) {
+    let delay = subscriptionReconnectDelay;
     try {
       for await (const evt of this.sub) {
         try {
-          await this.handleEvent(evt)
+          await this.handleEvent(evt);
         } catch (err) {
-          console.error('repo subscription could not handle message', err)
+          console.error('repo subscription could not handle message', err);
         }
-        // update stored cursor every 20 events or so
         if (isCommit(evt) && evt.seq % 20 === 0) {
-          await this.updateCursor(evt.seq)
+          await this.updateCursor(evt.seq);
         }
       }
     } catch (err) {
-      console.error('repo subscription errored', err)
-      setTimeout(() => this.run(subscriptionReconnectDelay), subscriptionReconnectDelay)
+      console.error('repo subscription errored', err);
+      setTimeout(() => {
+        this.run(Math.min(delay * 2, maxDelay)); // Exponential backoff
+      }, delay);
     }
   }
+
 
   async updateCursor(cursor: number) {
     await this.db
@@ -73,13 +78,11 @@ export abstract class FirehoseSubscriptionBase {
   }
 }
 
+
 export const getOpsByType = async (evt: Commit): Promise<OperationsByType> => {
   const car = await readCar(evt.blocks)
   const opsByType: OperationsByType = {
     posts: { creates: [], deletes: [] },
-    reposts: { creates: [], deletes: [] },
-    likes: { creates: [], deletes: [] },
-    follows: { creates: [], deletes: [] },
   }
 
   for (const op of evt.ops) {
@@ -96,24 +99,12 @@ export const getOpsByType = async (evt: Commit): Promise<OperationsByType> => {
       const create = { uri, cid: op.cid.toString(), author: evt.repo }
       if (collection === ids.AppBskyFeedPost && isPost(record)) {
         opsByType.posts.creates.push({ record, ...create })
-      } else if (collection === ids.AppBskyFeedRepost && isRepost(record)) {
-        opsByType.reposts.creates.push({ record, ...create })
-      } else if (collection === ids.AppBskyFeedLike && isLike(record)) {
-        opsByType.likes.creates.push({ record, ...create })
-      } else if (collection === ids.AppBskyGraphFollow && isFollow(record)) {
-        opsByType.follows.creates.push({ record, ...create })
       }
     }
 
     if (op.action === 'delete') {
       if (collection === ids.AppBskyFeedPost) {
         opsByType.posts.deletes.push({ uri })
-      } else if (collection === ids.AppBskyFeedRepost) {
-        opsByType.reposts.deletes.push({ uri })
-      } else if (collection === ids.AppBskyFeedLike) {
-        opsByType.likes.deletes.push({ uri })
-      } else if (collection === ids.AppBskyGraphFollow) {
-        opsByType.follows.deletes.push({ uri })
       }
     }
   }
@@ -123,9 +114,6 @@ export const getOpsByType = async (evt: Commit): Promise<OperationsByType> => {
 
 type OperationsByType = {
   posts: Operations<PostRecord>
-  reposts: Operations<RepostRecord>
-  likes: Operations<LikeRecord>
-  follows: Operations<FollowRecord>
 }
 
 type Operations<T = Record<string, unknown>> = {
@@ -148,18 +136,6 @@ export const isPost = (obj: unknown): obj is PostRecord => {
   return isType(obj, ids.AppBskyFeedPost)
 }
 
-export const isRepost = (obj: unknown): obj is RepostRecord => {
-  return isType(obj, ids.AppBskyFeedRepost)
-}
-
-export const isLike = (obj: unknown): obj is LikeRecord => {
-  return isType(obj, ids.AppBskyFeedLike)
-}
-
-export const isFollow = (obj: unknown): obj is FollowRecord => {
-  return isType(obj, ids.AppBskyGraphFollow)
-}
-
 const isType = (obj: unknown, nsid: string) => {
   try {
     lexicons.assertValidRecord(nsid, fixBlobRefs(obj))
@@ -169,10 +145,6 @@ const isType = (obj: unknown, nsid: string) => {
   }
 }
 
-// @TODO right now record validation fails on BlobRefs
-// simply because multiple packages have their own copy
-// of the BlobRef class, causing instanceof checks to fail.
-// This is a temporary solution.
 const fixBlobRefs = (obj: unknown): unknown => {
   if (Array.isArray(obj)) {
     return obj.map(fixBlobRefs)
@@ -188,3 +160,54 @@ const fixBlobRefs = (obj: unknown): unknown => {
   }
   return obj
 }
+
+
+
+// export const getOpsByType = async (evt: Commit): Promise<{ posts: { creates: CreateOp<PostRecord>[]; deletes: DeleteOp[]; } }> => {
+//   let car;
+//   try {
+//     car = await readCar(evt.blocks);
+//   } catch (error) {
+//     console.error('Failed to read CAR file:', error);
+//     throw new Error('Failed to process event due to CAR read error.');
+//   }
+
+//   const ops: { posts: { creates: CreateOp<PostRecord>[]; deletes: DeleteOp[]; } } = { posts: { creates: [], deletes: [] } };
+
+//   for (const op of evt.ops) {
+//     const uri = `at://${evt.repo}/${op.path}`;
+//     const [collection] = op.path.split('/');
+
+//     if (op.action === 'create' && collection === ids.AppBskyFeedPost) {
+//       if (!op.cid) continue;
+//       const recordBytes = car.blocks.get(op.cid);
+//       if (!recordBytes) {
+//         console.warn(`No record found for CID ${op.cid}`);
+//         continue;
+//       }
+//       try {
+//         const record = cborToLexRecord<PostRecord>(recordBytes);
+//         ops.posts.creates.push({ uri, cid: op.cid.toString(), author: evt.repo, record });
+//       } catch (error) {
+//         console.error(`Failed to decode record for CID ${op.cid}:`, error);
+//       }
+//     } else if (op.action === 'delete' && collection === ids.AppBskyFeedPost) {
+//       ops.posts.deletes.push({ uri });
+//     }
+//   }
+
+//   return ops;
+// };
+
+
+
+// type CreateOp<T> = {
+//   uri: string
+//   cid: string
+//   author: string
+//   record: T
+// }
+
+// type DeleteOp = {
+//   uri: string
+// }
