@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import FeedGenerator from './server';
 import fs from 'fs';
 import https from 'https';
+import http from 'http';
 
 // Helper function to parse boolean environment variables
 const parseBool = (val: string | undefined, defaultValue: boolean): boolean => {
@@ -19,9 +20,11 @@ const maybeInt = (val?: string, defaultValue: number = 0): number => {
 };
 
 interface SSLConfig {
-  rejectUnauthorized: boolean;
-  ca: Buffer;
-}
+    rejectUnauthorized: boolean;
+    key: Buffer;
+    cert: Buffer;
+    ca?: Buffer; // Optional, include if you use a CA bundle for extra verification
+  }  
 
 const run = async () => {
     dotenv.config();
@@ -31,15 +34,23 @@ const run = async () => {
     
     let sslOptions: https.ServerOptions | undefined = undefined;
     if (useSSL) {
-        const caPath = process.env.AWS_RDS_CA_PATH;
-        if (!caPath) {
-            throw new Error("AWS RDS CA path must be defined in environment variables.");
+        const keyPath = process.env.SSL_KEY_PATH;
+        const certPath = process.env.SSL_CERT_PATH;
+        const caPath = process.env.AWS_RDS_CA_PATH; // Optional
+        
+        if (!keyPath || !certPath) {
+            throw new Error("SSL certificate or key path is not defined in environment variables.");
         }
         sslOptions = {
-            rejectUnauthorized: parseBool(process.env.FEEDGEN_DATABASE_SSL_REJECT_UNAUTHORIZED, true),
-            ca: fs.readFileSync(caPath)
-        };
-    }
+            key: fs.readFileSync(keyPath),
+            cert: fs.readFileSync(certPath),
+            rejectUnauthorized: parseBool(process.env.FEEDGEN_DATABASE_SSL_REJECT_UNAUTHORIZED, true)
+          };
+      
+          if (caPath) {
+            sslOptions.ca = fs.readFileSync(caPath);
+          }
+        }
 
     const serverConfig = {
         port: maybeInt(process.env.FEEDGEN_PORT, 3000),
