@@ -25,5 +25,5 @@ export default function (server: Server, ctx: AppContext) {
       console.error('Failed to describe feed generator:', error);
       throw error;
     }
-  })
+  });
 }
