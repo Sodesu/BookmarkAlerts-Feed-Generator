@@ -8,12 +8,20 @@ import { AtUri } from '@atproto/syntax'
 
 export default function (server: Server, ctx: AppContext) {
     server.app.bsky.feed.getFeedSkeleton(async ({ params, req }) => {
+        console.log('Received request for feed skeleton:', params);
+        
         const feedUri = new AtUri(params.feed);
         const algo = algos[feedUri.rkey];
-        
+
         if (feedUri.hostname !== ctx.cfg.publisherDid ||
             feedUri.collection !== 'app.bsky.feed.generator' ||
             !algo) {
+            console.error('Unsupported algorithm or invalid request parameters', {
+                feedUri,
+                publisherDid: ctx.cfg.publisherDid,
+                collection: feedUri.collection,
+                algoExists: !!algo,
+            });
             throw new InvalidRequestError(
                 'Unsupported algorithm',
                 'UnsupportedAlgorithm',
@@ -27,7 +35,8 @@ export default function (server: Server, ctx: AppContext) {
         // }
 
         const body = await algo.handler(ctx, params);
-        
+        console.log('Returning feed skeleton:', body);
+
         return {
             encoding: 'application/json',
             body: body,
