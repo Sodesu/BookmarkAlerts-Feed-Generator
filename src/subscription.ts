@@ -11,7 +11,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     const postsToDelete = ops.posts.deletes.map((del) => del.uri);
     const postsToCreate = ops.posts.creates
-      .filter((create) => create.record.text.toLowerCase().includes('@bookmarkalerts'))
+      .filter((create) => create.record.text.toLowerCase().includes('Mark 12:31'))
       .map((create) => ({
           uri: create.uri,
           cid: create.cid,
