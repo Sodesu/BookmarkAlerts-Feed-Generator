@@ -14,11 +14,11 @@ migrations['001'] = {
       .createTable('post')
       .addColumn('uri', 'varchar', (col) => col.primaryKey())
       .addColumn('cid', 'varchar', (col) => col.notNull())
-      .addColumn('content', 'text') // Add content column
+      .addColumn('content', 'text')
       .addColumn('replyParent', 'varchar')
       .addColumn('replyRoot', 'varchar')
       .addColumn('indexedAt', 'varchar', (col) => col.notNull())
-      .addColumn('parent_uri', 'varchar') // Add parent columns
+      .addColumn('parent_uri', 'varchar')
       .addColumn('parent_cid', 'varchar')
       .addColumn('parent_content', 'text')
       .addColumn('parent_replyParent', 'varchar')
