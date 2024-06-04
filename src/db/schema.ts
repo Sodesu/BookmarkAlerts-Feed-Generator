@@ -5,12 +5,17 @@ export type DatabaseSchema = {
 
 export type Post = {
   uri: string;
+  indexedAt: string;
   cid: string;
+  content: string | null;  // Add content field
   replyParent: string | null;
   replyRoot: string | null;
-  indexedAt: string;      
-  scheduledDate: string | null;
-  responseSent: boolean;
+  parent_uri: string | null;  // Add parent fields
+  parent_cid: string | null;
+  parent_content: string | null;
+  parent_replyParent: string | null;
+  parent_replyRoot: string | null;
+  parent_indexedAt: string | null;
 }
 
 export type SubState = {
