@@ -3,13 +3,13 @@ import {
   isCommit,
 } from './lexicon/types/com/atproto/sync/subscribeRepos';
 import { FirehoseSubscriptionBase, getOpsByType } from './util/subscription';
-import { Post } from './db/schema'; // Ensure this import path matches your actual file structure
-import { AppContext } from './config'; // Import AppContext
+import { Post } from './db/schema'; 
+import { AppContext } from './config';
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
     if (!isCommit(evt)) return;
-    console.log('Received event:', JSON.stringify(evt, null, 2)); // Add logging for received events
+    console.log('Received event:', JSON.stringify(evt, null, 2));
     const ops = await getOpsByType(evt);
 
     const postsToDelete = ops.posts.deletes.map((del) => del.uri);
@@ -63,12 +63,10 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       }
     } catch (error) {
       console.error('Failed to update database:', error);
-      // Additional error handling as needed
     }
   }
 }
 
-// Function to start the subscription and handle events
 export async function subscribe(ctx: AppContext) {
   const subscription = new FirehoseSubscription(ctx.db, ctx.cfg.subscriptionEndpoint);
 
