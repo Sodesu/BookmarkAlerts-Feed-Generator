@@ -2,6 +2,10 @@ import dotenv from 'dotenv';
 import FeedGenerator from './server';
 import fs from 'fs';
 import https from 'https';
+import { subscribe } from './subscription';
+import { createDb, migrateToLatest } from './db';
+import { AppContext} from './config';
+import { DidResolver, MemoryCache } from '@atproto/identity';
 import http from 'http';
 
 // Helper function to parse boolean environment variables
@@ -11,24 +15,21 @@ const parseBool = (val: string | undefined, defaultValue: boolean): boolean => {
     }
     return val.toLowerCase() === 'true';
 };
-
 const maybeStr = (val?: string, defaultValue: string = ''): string => val ?? defaultValue;
 const maybeInt = (val?: string, defaultValue: number = 0): number => {
     if (val === undefined) return defaultValue;
     const parsed = parseInt(val, 10);
     return isNaN(parsed) ? defaultValue : parsed;
 };
-
-interface SSLConfig {
-    rejectUnauthorized: boolean;
-    key: Buffer;
-    cert: Buffer;
-    ca?: Buffer; // Optional, include if you use a CA bundle for extra verification
-  }  
-
+// interface SSLConfig {
+//     rejectUnauthorized: boolean;
+//     key: Buffer;
+//     cert: Buffer;
+//     ca?: Buffer; // Optional, include if you use a CA bundle for extra verification
+//   }  
 const run = async () => {
     dotenv.config();
-    const hostname = maybeStr(process.env.FEEDGEN_HOSTNAME, 'example.com');
+    const hostname = maybeStr(process.env.FEEDGEN_HOSTNAME, 'aws.theitpharaoh.com');
     const serviceDid = maybeStr(process.env.FEEDGEN_SERVICE_DID, `did:web:${hostname}`);
     const useSSL = parseBool(process.env.FEEDGEN_DATABASE_USE_SSL, true);
     
@@ -51,25 +52,37 @@ const run = async () => {
             sslOptions.ca = fs.readFileSync(caPath);
           }
         }
-
     const serverConfig = {
         port: maybeInt(process.env.FEEDGEN_PORT, 3000),
         listenhost: maybeStr(process.env.FEEDGEN_LISTENHOST, 'localhost'),
+        hostname,
         databaseUrl: maybeStr(process.env.FEEDGEN_DATABASE_URL),
         subscriptionEndpoint: maybeStr(process.env.FEEDGEN_SUBSCRIPTION_ENDPOINT, 'wss://bsky.network'),
+        serviceDid,
         publisherDid: maybeStr(process.env.FEEDGEN_PUBLISHER_DID, 'did:example:alice'),
-        subscriptionReconnectDelay: maybeInt(process.env.FEEDGEN_SUBSCRIPTION_RECONNECT_DELAY, 3000),
-        hostname,
-        serviceDid
+        subscriptionReconnectDelay: maybeInt(process.env.FEEDGEN_SUBSCRIPTION_RECONNECT_DELAY, 3000)
     };
 
-    const feedGenerator = FeedGenerator.create(serverConfig);
+    const db = createDb();
+    await migrateToLatest(db);
 
+    const didCache = new MemoryCache();
+    const didResolver = new DidResolver({ plcUrl: 'https://plc.directory', didCache });
+
+    const ctx: AppContext = {
+      db,
+      didResolver,
+      cfg: serverConfig,
+    };
+
+    await subscribe(ctx);
+
+    const feedGenerator = FeedGenerator.create(serverConfig);
     if (sslOptions) {
         // Example of creating an HTTPS server using sslOptions, adapting it to your actual server setup
         const httpsServer = https.createServer(sslOptions, feedGenerator.app);
         httpsServer.listen(serverConfig.port, serverConfig.listenhost, () => {
-            console.log(`🤖 HTTPS feed generator running at https://${serverConfig.listenhost}:${serverConfig.port}`);
+            console.log(`🤖 HTTPS feed generator running at https://${hostname}:${serverConfig.port}`);
         });
     } else {
         // If not using HTTPS, start normally
@@ -77,5 +90,4 @@ const run = async () => {
         console.log(`🤖 HTTP feed generator running at http://${serverConfig.listenhost}:${serverConfig.port}`);
     }
 };
-
-run().catch(error => console.error("Failed to start the server:", error));
+run().catch(error => console.error("Failed to start the server:", error))
