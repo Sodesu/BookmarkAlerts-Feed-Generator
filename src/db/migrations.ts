@@ -37,30 +37,3 @@ migrations['001'] = {
     await db.schema.dropTable('sub_state').execute();
   },
 };
-
-migrations['002'] = {
-  async up(db: Kysely<unknown>) {
-    await db.schema
-      .alterTable('post')
-      .addColumn('content', 'text')
-      .addColumn('parent_uri', 'varchar')
-      .addColumn('parent_cid', 'varchar')
-      .addColumn('parent_content', 'text')
-      .addColumn('parent_replyParent', 'varchar')
-      .addColumn('parent_replyRoot', 'varchar')
-      .addColumn('parent_indexedAt', 'varchar')
-      .execute();
-  },
-  async down(db: Kysely<unknown>) {
-    await db.schema
-      .alterTable('post')
-      .dropColumn('content')
-      .dropColumn('parent_uri')
-      .dropColumn('parent_cid')
-      .dropColumn('parent_content')
-      .dropColumn('parent_replyParent')
-      .dropColumn('parent_replyRoot')
-      .dropColumn('parent_indexedAt')
-      .execute();
-  },
-};
