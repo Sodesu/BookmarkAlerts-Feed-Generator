@@ -11,7 +11,7 @@
     "start": "ts-node src/index.ts",
     "clean": "rm -rf ./dist",
     "build": "tsc",
-    "migrate": "ts-node src/migrate.ts"
+    "migrate": "ts-node src/db/migrate.ts"
   },
   "dependencies": {
     "@atproto/api": "^0.6.20",
