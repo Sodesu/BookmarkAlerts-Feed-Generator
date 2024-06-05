@@ -9,6 +9,7 @@ import { AppContext } from './config'; // Import AppContext
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
     if (!isCommit(evt)) return;
+    console.log('Received event:', JSON.stringify(evt, null, 2)); // Add logging for received events
     const ops = await getOpsByType(evt);
 
     const postsToDelete = ops.posts.deletes.map((del) => del.uri);
@@ -62,9 +63,12 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       }
     } catch (error) {
       console.error('Failed to update database:', error);
+      // Additional error handling as needed
     }
   }
 }
+
+// Function to start the subscription and handle events
 export async function subscribe(ctx: AppContext) {
   const subscription = new FirehoseSubscription(ctx.db, ctx.cfg.subscriptionEndpoint);
 
