@@ -29,7 +29,7 @@ const maybeInt = (val?: string, defaultValue: number = 0): number => {
 //   }  
 const run = async () => {
     dotenv.config();
-    const hostname = maybeStr(process.env.FEEDGEN_HOSTNAME, 'aws.theitpharaoh.com');
+    const hostname = maybeStr(process.env.FEEDGEN_HOSTNAME, 'example.com);
     const serviceDid = maybeStr(process.env.FEEDGEN_SERVICE_DID, `did:web:${hostname}`);
     const useSSL = parseBool(process.env.FEEDGEN_DATABASE_USE_SSL, true);
     
@@ -37,7 +37,7 @@ const run = async () => {
     if (useSSL) {
         const keyPath = process.env.SSL_KEY_PATH;
         const certPath = process.env.SSL_CERT_PATH;
-        const caPath = process.env.AWS_RDS_CA_PATH; // Optional
+        const caPath = process.env.AWS_RDS_CA_PATH;
         
         if (!keyPath || !certPath) {
             throw new Error("SSL certificate or key path is not defined in environment variables.");
@@ -79,15 +79,13 @@ const run = async () => {
 
     const feedGenerator = FeedGenerator.create(serverConfig);
     if (sslOptions) {
-        // Example of creating an HTTPS server using sslOptions, adapting it to your actual server setup
         const httpsServer = https.createServer(sslOptions, feedGenerator.app);
         httpsServer.listen(serverConfig.port, serverConfig.listenhost, () => {
-            console.log(`🤖 HTTPS feed generator running at https://${hostname}:${serverConfig.port}`);
+            console.log(`🤖 HTTPS feed generator running at https://${hostname}:${serverConfig.port} @ src/index.ts`);
         });
     } else {
-        // If not using HTTPS, start normally
         await feedGenerator.start();
-        console.log(`🤖 HTTP feed generator running at http://${serverConfig.listenhost}:${serverConfig.port}`);
+        console.log(`🤖 HTTP feed generator running at http://${serverConfig.listenhost}:${serverConfig.port} @ src/index.ts`);
     }
 };
-run().catch(error => console.error("Failed to start the server:", error))
+run().catch(error => console.error("Failed to start the server @ src/index.ts:", error))
