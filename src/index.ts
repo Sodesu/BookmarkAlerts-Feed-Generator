@@ -6,6 +6,9 @@ import { subscribe } from './subscription';
 import { createDb, migrateToLatest } from './db';
 import { AppContext} from './config';
 import { DidResolver, MemoryCache } from '@atproto/identity';
+import { Migrator } from 'kysely';
+import { migrationProvider } from './db/migrations';  // Add this import
+
 import http from 'http';
 
 // Helper function to parse boolean environment variables
@@ -29,7 +32,7 @@ const maybeInt = (val?: string, defaultValue: number = 0): number => {
 //   }  
 const run = async () => {
     dotenv.config();
-    const hostname = maybeStr(process.env.FEEDGEN_HOSTNAME, 'example.com);
+    const hostname = maybeStr(process.env.FEEDGEN_HOSTNAME, 'aws.theitpharaoh.com');
     const serviceDid = maybeStr(process.env.FEEDGEN_SERVICE_DID, `did:web:${hostname}`);
     const useSSL = parseBool(process.env.FEEDGEN_DATABASE_USE_SSL, true);
     
@@ -37,7 +40,7 @@ const run = async () => {
     if (useSSL) {
         const keyPath = process.env.SSL_KEY_PATH;
         const certPath = process.env.SSL_CERT_PATH;
-        const caPath = process.env.AWS_RDS_CA_PATH;
+        const caPath = process.env.AWS_RDS_CA_PATH; // Optional
         
         if (!keyPath || !certPath) {
             throw new Error("SSL certificate or key path is not defined in environment variables.");
@@ -64,7 +67,15 @@ const run = async () => {
     };
 
     const db = createDb();
-    await migrateToLatest(db);
+
+    // Run migrations
+    try {
+        console.log('Running migrations...');
+        await migrateToLatest(db);
+        console.log('Migrations completed successfully.');
+    } catch (error) {
+        console.error('Error running migrations:', error);
+    }
 
     const didCache = new MemoryCache();
     const didResolver = new DidResolver({ plcUrl: 'https://plc.directory', didCache });
@@ -75,17 +86,21 @@ const run = async () => {
       cfg: serverConfig,
     };
 
+
     await subscribe(ctx);
+
 
     const feedGenerator = FeedGenerator.create(serverConfig);
     if (sslOptions) {
+        // Example of creating an HTTPS server using sslOptions, adapting it to your actual server setup
         const httpsServer = https.createServer(sslOptions, feedGenerator.app);
         httpsServer.listen(serverConfig.port, serverConfig.listenhost, () => {
-            console.log(`🤖 HTTPS feed generator running at https://${hostname}:${serverConfig.port} @ src/index.ts`);
+            console.log(`🤖 HTTPS feed generator running at https://${hostname}:${serverConfig.port}`);
         });
     } else {
+        // If not using HTTPS, start normally
         await feedGenerator.start();
-        console.log(`🤖 HTTP feed generator running at http://${serverConfig.listenhost}:${serverConfig.port} @ src/index.ts`);
+        console.log(`🤖 HTTP feed generator running at http://${serverConfig.listenhost}:${serverConfig.port}`);
     }
 };
-run().catch(error => console.error("Failed to start the server @ src/index.ts:", error))
+run().catch(error => console.error("Failed to start the server:", error));
