@@ -3,33 +3,44 @@ import {
   isCommit,
 } from './lexicon/types/com/atproto/sync/subscribeRepos';
 import { FirehoseSubscriptionBase, getOpsByType } from './util/subscription';
-import { Post } from './db/schema'; 
+import { Post } from './db/schema';
 import { AppContext } from './config';
+import { cborToLexRecord } from '@atproto/repo';
+
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
     if (!isCommit(evt)) return;
-    console.log('Received event:', JSON.stringify(evt, null, 2));
+
+    const { blocks, ...eventWithoutBlocks } = evt;
+    console.log('Received event (without blocks):', JSON.stringify(eventWithoutBlocks, null, 2));
     const ops = await getOpsByType(evt);
 
     const postsToDelete = ops.posts.deletes.map((del) => del.uri);
 
     const postsToCreate: Post[] = ops.posts.creates
-      .filter((create) => create.record.text.toLowerCase().includes('@bookmarkalerts'))
-      .map((create) => ({
-        uri: create.uri,
-        cid: create.cid,
-        content: typeof create.record.text === 'string' ? create.record.text : null,
-        replyParent: typeof create.record?.reply?.parent?.uri === 'string' ? create.record.reply.parent.uri : null,
-        replyRoot: typeof create.record?.reply?.root?.uri === 'string' ? create.record.reply.root.uri : null,
-        indexedAt: new Date().toISOString(),
-        parent_uri: typeof create.record?.reply?.parent?.uri === 'string' ? create.record.reply.parent.uri : null,
-        parent_cid: typeof create.record?.reply?.parent?.cid === 'string' ? create.record.reply.parent.cid : null,
-        parent_content: typeof create.record?.reply?.parent?.text === 'string' ? create.record.reply.parent.text : null,
-        parent_replyParent: typeof create.record?.reply?.parent?.replyParent === 'string' ? create.record.reply.parent.replyParent : null,
-        parent_replyRoot: typeof create.record?.reply?.parent?.replyRoot === 'string' ? create.record.reply.parent.replyRoot : null,
-        parent_indexedAt: typeof create.record?.reply?.parent?.indexedAt === 'string' ? create.record.reply.parent.indexedAt : null,
-      }));
+      .filter((create) => create.record.text.toLowerCase().includes('Mark 12:31'))
+      .map((create) => {
+        const postDetails = {
+          uri: create.uri,
+          cid: create.cid,
+          content: typeof create.record.text === 'string' ? create.record.text : null,
+          replyParent: typeof create.record?.reply?.parent?.uri === 'string' ? create.record.reply.parent.uri : null,
+          replyRoot: typeof create.record?.reply?.root?.uri === 'string' ? create.record.reply.root.uri : null,
+          indexedAt: new Date().toISOString(),
+          parent_uri: typeof create.record?.reply?.parent?.uri === 'string' ? create.record.reply.parent.uri : null,
+          parent_cid: typeof create.record?.reply?.parent?.cid === 'string' ? create.record.reply.parent.cid : null,
+          parent_content: typeof create.record?.reply?.parent?.text === 'string' ? create.record.reply.parent.text : null,
+          parent_replyParent: typeof create.record?.reply?.parent?.replyParent === 'string' ? create.record.reply.parent.replyParent : null,
+          parent_replyRoot: typeof create.record?.reply?.parent?.replyRoot === 'string' ? create.record.reply.parent.replyRoot : null,
+          parent_indexedAt: typeof create.record?.reply?.parent?.indexedAt === 'string' ? create.record.reply.parent.indexedAt : null,
+        };
+        console.log('Post details:', JSON.stringify(postDetails, null, 2));
+        return postDetails;
+      });
+
+    console.log('Posts to create:', JSON.stringify(postsToCreate, null, 2));
+    console.log('Posts to delete:', JSON.stringify(postsToDelete, null, 2));
 
     try {
       if (postsToDelete.length > 0) {
