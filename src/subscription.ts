@@ -1,3 +1,4 @@
+
 import {
   OutputSchema as RepoEvent,
   isCommit,
@@ -7,40 +8,38 @@ import { Post } from './db/schema';
 import { AppContext } from './config';
 import { cborToLexRecord } from '@atproto/repo';
 
-
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
     if (!isCommit(evt)) return;
-
-    const { blocks, ...eventWithoutBlocks } = evt;
-    console.log('Received event (without blocks):', JSON.stringify(eventWithoutBlocks, null, 2));
     const ops = await getOpsByType(evt);
-
     const postsToDelete = ops.posts.deletes.map((del) => del.uri);
-
     const postsToCreate: Post[] = ops.posts.creates
       .filter((create) => create.record.text.toLowerCase().includes('Mark 12:31'))
-      .map((create) => {
-        const postDetails = {
-          uri: create.uri,
-          cid: create.cid,
-          content: typeof create.record.text === 'string' ? create.record.text : null,
-          replyParent: typeof create.record?.reply?.parent?.uri === 'string' ? create.record.reply.parent.uri : null,
-          replyRoot: typeof create.record?.reply?.root?.uri === 'string' ? create.record.reply.root.uri : null,
-          indexedAt: new Date().toISOString(),
-          parent_uri: typeof create.record?.reply?.parent?.uri === 'string' ? create.record.reply.parent.uri : null,
-          parent_cid: typeof create.record?.reply?.parent?.cid === 'string' ? create.record.reply.parent.cid : null,
-          parent_content: typeof create.record?.reply?.parent?.text === 'string' ? create.record.reply.parent.text : null,
-          parent_replyParent: typeof create.record?.reply?.parent?.replyParent === 'string' ? create.record.reply.parent.replyParent : null,
-          parent_replyRoot: typeof create.record?.reply?.parent?.replyRoot === 'string' ? create.record.reply.parent.replyRoot : null,
-          parent_indexedAt: typeof create.record?.reply?.parent?.indexedAt === 'string' ? create.record.reply.parent.indexedAt : null,
-        };
-        console.log('Post details:', JSON.stringify(postDetails, null, 2));
-        return postDetails;
-      });
+      .map((create) => ({
+        uri: create.uri,
+        cid: create.cid,
+        content: typeof create.record.text === 'string' ? create.record.text : null,
+        replyParent: typeof create.record?.reply?.parent?.uri === 'string' ? create.record.reply.parent.uri : null,
+        replyRoot: typeof create.record?.reply?.root?.uri === 'string' ? create.record.reply.root.uri : null,
+        indexedAt: new Date().toISOString(),
+        parent_uri: typeof create.record?.reply?.parent?.uri === 'string' ? create.record.reply.parent.uri : null,
+        parent_cid: typeof create.record?.reply?.parent?.cid === 'string' ? create.record.reply.parent.cid : null,
+        parent_content: typeof create.record?.reply?.parent?.text === 'string' ? create.record.reply.parent.text : null,
+        parent_replyParent: typeof create.record?.reply?.parent?.replyParent === 'string' ? create.record.reply.parent.replyParent : null,
+        parent_replyRoot: typeof create.record?.reply?.parent?.replyRoot === 'string' ? create.record.reply.parent.replyRoot : null,
+        parent_indexedAt: typeof create.record?.reply?.parent?.indexedAt === 'string' ? create.record.reply.parent.indexedAt : null,
+      }));
 
-    console.log('Posts to create:', JSON.stringify(postsToCreate, null, 2));
-    console.log('Posts to delete:', JSON.stringify(postsToDelete, null, 2));
+    if (postsToCreate.length > 0 || postsToDelete.length > 0) {
+      const timestamp = new Date().toISOString();
+      console.log(`[${timestamp}] Processing event:`);
+      if (postsToCreate.length > 0) {
+        console.log(`[${timestamp}] Posts to create:`, JSON.stringify(postsToCreate, null, 2));
+      }
+      if (postsToDelete.length > 0) {
+        console.log(`[${timestamp}] Posts to delete:`, JSON.stringify(postsToDelete, null, 2));
+      }
+    }
 
     try {
       if (postsToDelete.length > 0) {
@@ -73,13 +72,12 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           .execute();
       }
     } catch (error) {
-      console.error('Failed to update database:', error);
+      console.error(`[${new Date().toISOString()}] Failed to update database:`, error);
     }
   }
 }
-
+// Function to start the subscription and handle events
 export async function subscribe(ctx: AppContext) {
   const subscription = new FirehoseSubscription(ctx.db, ctx.cfg.subscriptionEndpoint);
-
   subscription.run(ctx.cfg.subscriptionReconnectDelay);
 }
