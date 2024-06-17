@@ -8,9 +8,9 @@ type SkeletonFeedPost = {
     post: string;
     reason?: { [k: string]: any; $type: string; } | undefined;
 };
-// max 15 chars
+
 export const shortname = 'whats-alf';
-export const requiresAuth = false; // No authentication needed
+export const requiresAuth = false;
 
 
 export const handler = async (ctx: AppContext, params: QueryParams): Promise<{ cursor?: string, feed: SkeletonFeedPost[] }> => {
