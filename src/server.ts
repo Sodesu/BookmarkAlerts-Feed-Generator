@@ -31,7 +31,7 @@ export class FeedGenerator {
 
   static create(cfg: Config) {
     const app = express()
-    const db = createDb(cfg.databaseUrl) // Adjusted to use PostgreSQL connection string
+    const db = createDb(cfg.databaseUrl)
     const firehose = new FirehoseSubscription(db, cfg.subscriptionEndpoint)
 
     const didCache = new MemoryCache()
@@ -43,9 +43,9 @@ export class FeedGenerator {
     const server = createServer({
       validateResponse: true,
       payload: {
-        jsonLimit: 100 * 1024, // 100kb
-        textLimit: 100 * 1024, // 100kb
-        blobLimit: 5 * 1024 * 1024, // 5mb
+        jsonLimit: 100 * 1024,
+        textLimit: 100 * 1024,
+        blobLimit: 5 * 1024 * 1024,
       },
     })
     const ctx: AppContext = {
