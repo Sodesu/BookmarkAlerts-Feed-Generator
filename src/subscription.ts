@@ -76,7 +76,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     }
   }
 }
-// Function to start the subscription and handle events
+// Function initiates firehosesub
 export async function subscribe(ctx: AppContext) {
   const subscription = new FirehoseSubscription(ctx.db, ctx.cfg.subscriptionEndpoint);
   subscription.run(ctx.cfg.subscriptionReconnectDelay);
