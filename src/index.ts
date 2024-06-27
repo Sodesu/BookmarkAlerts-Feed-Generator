@@ -7,11 +7,11 @@ import { createDb, migrateToLatest } from './db';
 import { AppContext} from './config';
 import { DidResolver, MemoryCache } from '@atproto/identity';
 import { Migrator } from 'kysely';
-import { migrationProvider } from './db/migrations';  // Add this import
+import { migrationProvider } from './db/migrations';
 
 import http from 'http';
 
-// Helper function to parse boolean environment variables
+
 const parseBool = (val: string | undefined, defaultValue: boolean): boolean => {
     if (val === undefined) {
         return defaultValue;
@@ -68,7 +68,7 @@ const run = async () => {
 
     const db = createDb();
 
-    // Run migrations
+
     try {
         console.log('Running migrations...');
         await migrateToLatest(db);
@@ -92,13 +92,13 @@ const run = async () => {
 
     const feedGenerator = FeedGenerator.create(serverConfig);
     if (sslOptions) {
-        // Example of creating an HTTPS server using sslOptions, adapting it to your actual server setup
+
         const httpsServer = https.createServer(sslOptions, feedGenerator.app);
         httpsServer.listen(serverConfig.port, serverConfig.listenhost, () => {
             console.log(`🤖 HTTPS feed generator running at https://${hostname}:${serverConfig.port}`);
         });
     } else {
-        // If not using HTTPS, start normally
+
         await feedGenerator.start();
         console.log(`🤖 HTTP feed generator running at http://${serverConfig.listenhost}:${serverConfig.port}`);
     }
